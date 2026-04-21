@@ -1,0 +1,135 @@
+<div id="oauth-wizard">
+  <style>
+    .wizard-container { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 600px; }
+    .wizard-step { margin: 16px 0; padding: 16px; border: 1px solid #ddd; border-radius: 8px; }
+    .wizard-step h3 { margin-top: 0; }
+    .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; margin: 4px; }
+    .btn-primary { background: #007bff; color: white; }
+    .btn-danger { background: #dc3545; color: white; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .status { margin-top: 8px; padding: 8px; border-radius: 4px; }
+    .status-success { background: #d4edda; color: #155724; }
+    .status-error { background: #f8d7da; color: #721c24; }
+    .status-info { background: #d1ecf1; color: #0c5460; }
+    input[type="text"] { width: 100%; padding: 8px; margin: 4px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+  </style>
+
+  <div class="wizard-container">
+    <div class="wizard-step">
+      <h3>Q990D Soundbar - OAuth Setup</h3>
+      <p>This wizard will help you authenticate with SmartThings. You need a SmartThings OAuth app created via the CLI first.</p>
+      <p>If you haven't created one yet, run:<br>
+        <code>smartthings apps:create</code><br>
+        Use <code>https://httpbin.org/get</code> for both Target URL and Redirect URI.
+      </p>
+    </div>
+
+    <div class="wizard-step">
+      <h3>Step 1: Enter Credentials</h3>
+      <label>Client ID:</label>
+      <input type="text" id="clientId" placeholder="Your OAuth Client ID">
+      <label>Client Secret:</label>
+      <input type="text" id="clientSecret" placeholder="Your OAuth Client Secret">
+      <br>
+      <button class="btn btn-primary" onclick="startAuth()">Authorize with SmartThings</button>
+      <div id="auth-status"></div>
+    </div>
+
+    <div class="wizard-step">
+      <h3>Step 2: Enter Authorization Code</h3>
+      <p>After authorizing, you'll be redirected to httpbin.org. Copy the <code>code</code> value from the URL.</p>
+      <label>Authorization Code:</label>
+      <input type="text" id="authCode" placeholder="Paste the code here">
+      <br>
+      <button class="btn btn-primary" onclick="exchangeToken()">Get Tokens</button>
+      <div id="token-status"></div>
+    </div>
+
+    <div class="wizard-step">
+      <h3>Manage Tokens</h3>
+      <button class="btn btn-danger" onclick="clearTokens()">Clear Saved Tokens</button>
+      <div id="clear-status"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SCOPES = 'r:devices:* w:devices:* x:devices:* r:locations:*';
+  const REDIRECT_URL = 'https://httpbin.org/get';
+
+  async function startAuth() {
+    const clientId = document.getElementById('clientId').value;
+    const clientSecret = document.getElementById('clientSecret').value;
+    const statusEl = document.getElementById('auth-status');
+
+    if (!clientId || !clientSecret) {
+      statusEl.className = 'status status-error';
+      statusEl.textContent = 'Please enter both Client ID and Client Secret';
+      return;
+    }
+
+    try {
+      const url = await homebridge.request('/authCode', {
+        clientId: clientId,
+        clientSecret: clientSecret,
+        redirectUrl: REDIRECT_URL,
+        scopes: SCOPES,
+      });
+
+      statusEl.className = 'status status-info';
+      statusEl.innerHTML = 'Opening SmartThings authorization...';
+
+      window.open(url, '_blank');
+    } catch (err) {
+      statusEl.className = 'status status-error';
+      statusEl.textContent = 'Error: ' + err.message;
+    }
+  }
+
+  async function exchangeToken() {
+    const code = document.getElementById('authCode').value;
+    const statusEl = document.getElementById('token-status');
+
+    if (!code) {
+      statusEl.className = 'status status-error';
+      statusEl.textContent = 'Please enter the authorization code';
+      return;
+    }
+
+    try {
+      const token = await homebridge.request('/authToken', {
+        code: code,
+        redirectUrl: REDIRECT_URL,
+        scopes: SCOPES,
+      });
+
+      // Save tokens to plugin config
+      const config = await homebridge.getPluginConfig();
+      if (config.length > 0) {
+        config[0].oauth_access_token = token.access_token;
+        config[0].oauth_refresh_token = token.refresh_token;
+        config[0].oauth_expires_in = token.expires_in;
+        await homebridge.updatePluginConfig(config);
+        await homebridge.savePluginConfig();
+      }
+
+      statusEl.className = 'status status-success';
+      statusEl.textContent = 'Authentication successful! Restart Homebridge to apply.';
+    } catch (err) {
+      statusEl.className = 'status status-error';
+      statusEl.textContent = 'Error: ' + err.message;
+    }
+  }
+
+  async function clearTokens() {
+    const statusEl = document.getElementById('clear-status');
+    try {
+      const result = await homebridge.request('/clearTokens');
+      statusEl.className = 'status status-success';
+      statusEl.textContent = result.message;
+    } catch (err) {
+      statusEl.className = 'status status-error';
+      statusEl.textContent = 'Error: ' + err.message;
+    }
+  }
+</script>

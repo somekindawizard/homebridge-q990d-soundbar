@@ -1,0 +1,50 @@
+{
+  "name": "@prismwizard/homebridge-q990d-soundbar",
+  "version": "4.0.0",
+  "description": "Homebridge plugin for Samsung HW-Q990D soundbar control via SmartThings API",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "homebridge-plugin",
+    "samsung",
+    "soundbar",
+    "q990d",
+    "smartthings"
+  ],
+  "author": "bwarren89",
+  "license": "MIT",
+  "engines": {
+    "homebridge": ">=1.6.0",
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "dist",
+    "homebridge-ui",
+    "config.schema.json"
+  ],
+  "homebridge-ui": {
+    "public": "homebridge-ui/public",
+    "server": "homebridge-ui/server.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "simple-oauth2": "^5.0.0"
+  },
+  "devDependencies": {
+    "@homebridge/plugin-ui-utils": "^1.0.0",
+    "@types/node": "^20.0.0",
+    "homebridge": "^1.6.0",
+    "typescript": "^5.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/somekindawizard/homebridge-q990d-soundbar.git"
+  },
+  "bugs": {
+    "url": "https://github.com/somekindawizard/homebridge-q990d-soundbar/issues"
+  },
+  "homepage": "https://github.com/somekindawizard/homebridge-q990d-soundbar#readme"
+}

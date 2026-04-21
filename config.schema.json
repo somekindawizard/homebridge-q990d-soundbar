@@ -1,0 +1,48 @@
+{
+  "pluginAlias": "Q990DSoundbar",
+  "pluginType": "platform",
+  "singular": true,
+  "customUi": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "title": "Name",
+        "type": "string",
+        "default": "Q990D Soundbar",
+        "required": true
+      },
+      "clientId": {
+        "title": "SmartThings OAuth Client ID",
+        "type": "string",
+        "required": true
+      },
+      "clientSecret": {
+        "title": "SmartThings OAuth Client Secret",
+        "type": "string",
+        "required": true
+      },
+      "deviceId": {
+        "title": "SmartThings Device ID",
+        "type": "string",
+        "default": "2714121a-4076-7b3e-3b06-b9110d2d369f",
+        "required": true
+      },
+      "oauth_access_token": {
+        "title": "OAuth Access Token (set by wizard)",
+        "type": "string",
+        "condition": { "functionBody": "return false;" }
+      },
+      "oauth_refresh_token": {
+        "title": "OAuth Refresh Token (set by wizard)",
+        "type": "string",
+        "condition": { "functionBody": "return false;" }
+      },
+      "oauth_expires_in": {
+        "title": "OAuth Expires In (set by wizard)",
+        "type": "integer",
+        "condition": { "functionBody": "return false;" }
+      }
+    }
+  }
+}
