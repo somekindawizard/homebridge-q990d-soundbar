@@ -25,7 +25,6 @@
       "deviceId": {
         "title": "SmartThings Device ID",
         "type": "string",
-        "default": "2714121a-4076-7b3e-3b06-b9110d2d369f",
         "required": true
       },
       "oauth_access_token": {

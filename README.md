@@ -7,7 +7,8 @@ A Homebridge plugin for controlling the Samsung HW-Q990D soundbar via the SmartT
 - **Sound Mode Switching** — Adaptive, Standard, Surround, Game (mutex: only one active at a time)
 - **Night Mode** — on/off toggle
 - **Voice Enhance** — on/off toggle
-- **Woofer Level** — adjustable from -6 to +6 via a brightness slider
+- **Speaker Level** — volume control via Fan speed slider (0–100)
+- **Woofer Level** — adjustable from −6 to +6 via Fan speed slider (0% = −6, 50% = 0, 100% = +6)
 - **Power** — on/off with real-time status polling
 - **OAuth Authentication** — automatic token refresh, setup wizard in Homebridge UI
 
@@ -37,8 +38,7 @@ See [INSTALL.md](INSTALL.md) for full setup instructions.
   "name": "Q990D Soundbar",
   "clientId": "YOUR_SMARTTHINGS_OAUTH_CLIENT_ID",
   "clientSecret": "YOUR_SMARTTHINGS_OAUTH_CLIENT_SECRET",
-  "deviceId": "YOUR_SOUNDBAR_DEVICE_ID",
-  "wooferDefault": 0
+  "deviceId": "YOUR_SOUNDBAR_DEVICE_ID"
 }
 ```
 
