@@ -16,12 +16,12 @@
 
   <div class="wizard-container">
     <div class="wizard-step">
-      <h3>Q990D Soundbar - OAuth Setup</h3>
-      <p>This wizard will help you authenticate with SmartThings. You need a SmartThings OAuth app created via the CLI first.</p>
-      <p>If you haven't created one yet, run:<br>
-        <code>smartthings apps:create</code><br>
-        Use <code>https://httpbin.org/get</code> for both Target URL and Redirect URI.
-      </p>
+      <h3>Q990D Soundbar — OAuth Setup</h3>
+      <p>This wizard authenticates the plugin with SmartThings. You'll need a SmartThings OAuth app created via the <a href="https://github.com/SmartThingsCommunity/smartthings-cli" target="_blank">SmartThings CLI</a> first.</p>
+      <p>On macOS, install the CLI with: <code>brew install smartthingscommunity/smartthings/smartthings</code><br>
+        Then create an OAuth app: <code>smartthings apps:create</code><br>
+        Use <code>https://httpbin.org/get</code> for both Target URL and Redirect URI.<br>
+        See <a href="https://github.com/somekindawizard/homebridge-q990d-soundbar/blob/main/INSTALL.md" target="_blank">INSTALL.md</a> for detailed instructions.</p>
     </div>
 
     <div class="wizard-step">
@@ -37,7 +37,7 @@
 
     <div class="wizard-step">
       <h3>Step 2: Enter Authorization Code</h3>
-      <p>After authorizing, you'll be redirected to httpbin.org. Copy the <code>code</code> value from the URL.</p>
+      <p>After authorizing, you'll be redirected to httpbin.org. Look at the <strong>URL in your browser's address bar</strong> (not the page content). Find <code>code=XXXXXX</code> in the URL and copy just the code value (everything between <code>code=</code> and the next <code>&amp;</code>).</p>
       <label>Authorization Code:</label>
       <input type="text" id="authCode" placeholder="Paste the code here">
       <br>
