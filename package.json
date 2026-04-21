@@ -1,6 +1,6 @@
 {
   "name": "@prismwizard/homebridge-q990d-soundbar",
-  "version": "4.0.5",
+  "version": "4.0.6",
   "description": "Homebridge plugin for Samsung HW-Q990D soundbar control via SmartThings API",
   "main": "dist/index.js",
   "scripts": {
