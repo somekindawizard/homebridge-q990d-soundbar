@@ -46,6 +46,16 @@ export class Q990DPlatform implements DynamicPlatformPlugin {
   private voiceEnhanceService: Service | null = null;
   private volumeService: Service | null = null;
   private wooferService: Service | null = null;
+  private powerService: Service | null = null;
+
+  // Background poller
+  private pollInterval: ReturnType<typeof setInterval> | null = null;
+  private readonly POLL_INTERVAL_MS = 30000; // 30 seconds
+
+  // Debounce timers for slider-driven API calls
+  private volumeDebounce: ReturnType<typeof setTimeout> | null = null;
+  private wooferDebounce: ReturnType<typeof setTimeout> | null = null;
+  private readonly DEBOUNCE_MS = 300;
 
   // Remembered levels to restore when fan is turned back on
   private lastVolume = 10;
@@ -263,21 +273,19 @@ export class Q990DPlatform implements DynamicPlatformPlugin {
         });
 
       service.getCharacteristic(this.Characteristic.RotationSpeed)
-        .onGet(async () => {
-          const status = await this.client.getDeviceStatus(this.deviceId);
-          if (status?.components?.main?.audioVolume?.volume?.value !== undefined) {
-            this.volume = status.components.main.audioVolume.volume.value;
-          }
-          return this.volume;
-        })
-        .onSet(async (value: CharacteristicValue) => {
+        .onGet(() => this.volume)
+        .onSet((value: CharacteristicValue) => {
           const vol = value as number;
-          const success = await this.client.sendStandardCommand(this.deviceId, 'audioVolume', 'setVolume', [vol]);
-          if (success) {
-            this.volume = vol;
-            if (vol > 0) this.lastVolume = vol;
-            this.log.info(`Speaker Level: ${vol}`);
-          }
+          this.volume = vol;
+          if (vol > 0) this.lastVolume = vol;
+
+          if (this.volumeDebounce) clearTimeout(this.volumeDebounce);
+          this.volumeDebounce = setTimeout(async () => {
+            const success = await this.client.sendStandardCommand(this.deviceId, 'audioVolume', 'setVolume', [vol]);
+            if (success) {
+              this.log.info(`Speaker Level: ${vol}`);
+            }
+          }, this.DEBOUNCE_MS);
         });
 
       this.volumeService = service;
@@ -326,17 +334,21 @@ export class Q990DPlatform implements DynamicPlatformPlugin {
 
       service.getCharacteristic(this.Characteristic.RotationSpeed)
         .onGet(() => this.wooferToPercent(this.wooferLevel))
-        .onSet(async (value: CharacteristicValue) => {
+        .onSet((value: CharacteristicValue) => {
           const percent = value as number;
           const level = this.percentToWoofer(percent);
-          const success = await this.client.sendExecuteCommand(this.deviceId,
-            '/sec/networkaudio/woofer',
-            { 'x.com.samsung.networkaudio.woofer': level });
-          if (success) {
-            this.wooferLevel = level;
-            if (percent > 0) this.lastWooferPercent = percent;
-            this.log.info(`Woofer level: ${level} (${percent}%)`);
-          }
+          this.wooferLevel = level;
+          if (percent > 0) this.lastWooferPercent = percent;
+
+          if (this.wooferDebounce) clearTimeout(this.wooferDebounce);
+          this.wooferDebounce = setTimeout(async () => {
+            const success = await this.client.sendExecuteCommand(this.deviceId,
+              '/sec/networkaudio/woofer',
+              { 'x.com.samsung.networkaudio.woofer': level });
+            if (success) {
+              this.log.info(`Woofer level: ${level} (${percent}%)`);
+            }
+          }, this.DEBOUNCE_MS);
         });
 
       this.wooferService = service;
@@ -353,13 +365,7 @@ export class Q990DPlatform implements DynamicPlatformPlugin {
       service.setCharacteristic(this.Characteristic.Name, name);
 
       service.getCharacteristic(this.Characteristic.On)
-        .onGet(async () => {
-          const status = await this.client.getDeviceStatus(this.deviceId);
-          if (status?.components?.main?.switch?.switch?.value) {
-            this.powerOn = status.components.main.switch.switch.value === 'on';
-          }
-          return this.powerOn;
-        })
+        .onGet(() => this.powerOn)
         .onSet(async (value: CharacteristicValue) => {
           const on = value as boolean;
           const success = await this.client.sendSwitchCommand(this.deviceId, on);
@@ -369,6 +375,8 @@ export class Q990DPlatform implements DynamicPlatformPlugin {
             this.syncPowerState(on);
           }
         });
+
+      this.powerService = service;
     }
 
     // Register new accessories
@@ -377,6 +385,67 @@ export class Q990DPlatform implements DynamicPlatformPlugin {
     }
 
     this.log.info(`Registered ${SOUND_MODES.length} sound modes, night mode, voice enhance, speaker level, woofer, and power`);
+
+    // Start background polling to keep cached state fresh
+    this.startPolling();
+  }
+
+  // Background poller — fetches device status periodically and pushes
+  // updates to HomeKit so onGet handlers never need to await the API.
+  private startPolling(): void {
+    // Initial poll shortly after launch to seed state
+    setTimeout(() => this.pollDeviceStatus(), 5000);
+
+    this.pollInterval = setInterval(() => this.pollDeviceStatus(), this.POLL_INTERVAL_MS);
+
+    this.api.on('shutdown', () => {
+      if (this.pollInterval) {
+        clearInterval(this.pollInterval);
+        this.pollInterval = null;
+      }
+    });
+
+    this.log.info(`Background polling started (every ${this.POLL_INTERVAL_MS / 1000}s)`);
+  }
+
+  private async pollDeviceStatus(): Promise<void> {
+    try {
+      const status = await this.client.getDeviceStatus(this.deviceId);
+      if (!status) return;
+
+      const main = status?.components?.main;
+      if (!main) return;
+
+      // Power
+      if (main.switch?.switch?.value) {
+        const wasOn = this.powerOn;
+        this.powerOn = main.switch.switch.value === 'on';
+        if (wasOn !== this.powerOn) {
+          this.log.info(`Poll: power changed to ${this.powerOn ? 'on' : 'off'}`);
+          this.syncPowerState(this.powerOn);
+          if (this.powerService) {
+            this.powerService.updateCharacteristic(this.Characteristic.On, this.powerOn);
+          }
+        }
+      }
+
+      // Volume
+      if (main.audioVolume?.volume?.value !== undefined) {
+        const newVolume = main.audioVolume.volume.value;
+        if (newVolume !== this.volume) {
+          this.volume = newVolume;
+          if (newVolume > 0) this.lastVolume = newVolume;
+          if (this.volumeService) {
+            this.volumeService.updateCharacteristic(this.Characteristic.On, this.powerOn && this.volume > 0);
+            this.volumeService.updateCharacteristic(this.Characteristic.RotationSpeed, this.volume);
+          }
+          this.log.debug(`Poll: volume updated to ${this.volume}`);
+        }
+      }
+
+    } catch (e) {
+      this.log.debug('Poll: failed to fetch device status', e);
+    }
   }
 
   // When power changes, update HomeKit tile states. Internal state for
